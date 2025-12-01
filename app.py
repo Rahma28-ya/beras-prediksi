@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from prophet import Prophet
+from prophet_standalone import Prophet
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import warnings
 warnings.filterwarnings("ignore")
@@ -29,8 +29,8 @@ with st.sidebar:
 @st.cache_data
 def load_data():
     df = pd.read_csv("bps_final.csv")
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.sort_values("date")
+    df["tanggal"] = pd.to_datetime(df["tanggal"])
+    df = df.rename(columns={"tanggal": "ds", "harga": "y"})
     return df
 
 df = load_data()
@@ -40,8 +40,8 @@ if selected == "Dashboard":
     st.title("Dashboard Harga Beras Indonesia")
 
     # Card Metrics
-    harga_terakhir = df["harga"].iloc[-1]
-    harga_awal = df["harga"].iloc[-2]
+    harga_terakhir = df["y"].iloc[-1]
+    harga_awal = df["y"].iloc[-2]
     persen_perubahan = ((harga_terakhir - harga_awal) / harga_awal) * 100
 
     col1, col2, col3 = st.columns(3)
@@ -50,11 +50,10 @@ if selected == "Dashboard":
     col3.metric("Perubahan (%)", f"{persen_perubahan:.2f}%")
 
     # Grafik Interaktif Harga
-    fig = px.line(df, x="date", y="harga",
+    fig = px.line(df, x="ds", y="y",
                   title="Trend Harga Beras dari Waktu ke Waktu",
                   markers=True)
     st.plotly_chart(fig, use_container_width=True)
-
 
 # 5. PREDIKSI DENGAN SARIMA
 elif selected == "Prediksi SARIMA":
@@ -63,14 +62,14 @@ elif selected == "Prediksi SARIMA":
     periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 24, 12)
 
     # Model SARIMA
-    model = SARIMAX(df["harga"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    model = SARIMAX(df["y"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
     model_fit = model.fit(disp=False)
 
     pred = model_fit.forecast(steps=periode)
 
     # Tampilkan dataframe prediksi
     pred_df = pd.DataFrame({
-        "Tanggal": pd.date_range(start=df["date"].iloc[-1], periods=periode+1, freq="MS")[1:],
+        "Tanggal": pd.date_range(start=df["ds"].iloc[-1], periods=periode+1, freq="MS")[1:],
         "Prediksi Harga": pred
     })
 
@@ -79,7 +78,6 @@ elif selected == "Prediksi SARIMA":
                    title="Prediksi Harga Beras - SARIMA",
                    markers=True)
     st.plotly_chart(fig2, use_container_width=True)
-
     st.dataframe(pred_df)
 
 # 6. PREDIKSI DENGAN PROPHET
@@ -88,11 +86,9 @@ elif selected == "Prediksi Prophet":
 
     periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 24, 12, key="p")
 
-    # Format dataframe Prophet
-    df_prophet = df.rename(columns={"date": "ds", "harga": "y"})
-
+    # Prophet sudah menggunakan kolom ds & y
     model = Prophet()
-    model.fit(df_prophet)
+    model.fit(df)
 
     future = model.make_future_dataframe(periods=periode, freq="MS")
     forecast = model.predict(future)
@@ -105,7 +101,6 @@ elif selected == "Prediksi Prophet":
                    title="Prediksi Harga Beras - Prophet",
                    markers=True)
     st.plotly_chart(fig3, use_container_width=True)
-
     st.dataframe(pred_prophet)
 
 # 7. TENTANG APLIKASI
@@ -123,4 +118,3 @@ elif selected == "Tentang":
     - Grafik interaktif Plotly
     - Tampilan modern dengan sidebar navigation
     """)
-
