@@ -10,7 +10,7 @@ st.title("Prediksi Harga Beras di Indonesia")
 st.write("Aplikasi ini menampilkan prediksi harga beras menggunakan SARIMA dan Prophet.")
 
 # LOAD DATA
-df = pd.read_csv("data/bps_final.csv")
+df = pd.read_csv("bps_final.csv")
 df["tanggal"] = pd.to_datetime(df["tanggal"])
 df = df.set_index("tanggal")
 
@@ -81,3 +81,4 @@ with col1:
 with col2:
     st.write(" **Prediksi Prophet 12 Bulan**")
     st.dataframe(forecast)
+
