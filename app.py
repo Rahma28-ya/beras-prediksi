@@ -37,7 +37,23 @@ df = load_data()
 
 # 4. DASHBOARD UTAMA
 if selected == "Dashboard":
-    st.title("Dashboard Harga Beras Indonesia")
+    # Judul dashboard berwarna
+    st.markdown(
+        "<h2 style='color:#FF6F61; text-align:center;'>🌾 Dashboard Harga Beras Indonesia 🌾</h2>",
+        unsafe_allow_html=True
+    )
+    st.write("---")
+
+    # Input harga manual
+    harga_input = st.number_input(
+        "Masukkan harga manual (Rp)", 
+        min_value=0, 
+        value=int(df['y'].iloc[-1])
+    )
+    st.markdown(
+        f"<p style='color:#1F618D; font-weight:bold;'>Harga manual yang dimasukkan: Rp {harga_input:,.0f}</p>",
+        unsafe_allow_html=True
+    )
 
     # Card Metrics
     harga_terakhir = df["y"].iloc[-1]
@@ -47,17 +63,31 @@ if selected == "Dashboard":
     col1, col2, col3 = st.columns(3)
     col1.metric("Harga Terbaru", f"Rp {harga_terakhir:,.0f}")
     col2.metric("Harga Sebelumnya", f"Rp {harga_awal:,.0f}")
-    col3.metric("Perubahan (%)", f"{persen_perubahan:.2f}%")
 
-    # Grafik Interaktif Harga
-    fig = px.line(df, x="ds", y="y",
-                  title="Trend Harga Beras dari Waktu ke Waktu",
-                  markers=True)
+    # Warna card perubahan (%)
+    warna = "green" if persen_perubahan >= 0 else "red"
+    col3.markdown(
+        f"<h3 style='color:{warna};'>{persen_perubahan:.2f}%</h3>",
+        unsafe_allow_html=True
+    )
+    st.write("---")
+
+    # Grafik Interaktif Harga dengan warna garis custom
+    fig = px.line(
+        df, x="ds", y="y",
+        title="Trend Harga Beras dari Waktu ke Waktu",
+        markers=True,
+        color_discrete_sequence=["#FF5733"]
+    )
+    fig.update_layout(template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
 
 # 5. PREDIKSI DENGAN SARIMA
 elif selected == "Prediksi SARIMA":
-    st.title("📈 Prediksi Harga Beras Menggunakan SARIMA")
+    st.markdown(
+        "<h2 style='color:#FF5733; text-align:center;'>📈 Prediksi Harga Beras Menggunakan SARIMA</h2>",
+        unsafe_allow_html=True
+    )
 
     periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 24, 12)
 
@@ -73,16 +103,25 @@ elif selected == "Prediksi SARIMA":
         "Prediksi Harga": pred
     })
 
-    # Grafik
-    fig2 = px.line(pred_df, x="Tanggal", y="Prediksi Harga",
-                   title="Prediksi Harga Beras - SARIMA",
-                   markers=True)
+    # Grafik dengan warna garis custom
+    fig2 = px.line(
+        pred_df, x="Tanggal", y="Prediksi Harga",
+        title="Prediksi Harga Beras - SARIMA",
+        markers=True,
+        color_discrete_sequence=["#28B463"]
+    )
+    fig2.update_layout(template="plotly_white")
     st.plotly_chart(fig2, use_container_width=True)
-    st.dataframe(pred_df)
+
+    # Tabel berwarna gradient
+    st.dataframe(pred_df.style.background_gradient(cmap='YlGn'))
 
 # 6. PREDIKSI DENGAN PROPHET
 elif selected == "Prediksi Prophet":
-    st.title("🔮 Prediksi Harga Beras Menggunakan Prophet")
+    st.markdown(
+        "<h2 style='color:#5DADE2; text-align:center;'>🔮 Prediksi Harga Beras Menggunakan Prophet</h2>",
+        unsafe_allow_html=True
+    )
 
     periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 24, 12, key="p")
 
@@ -96,12 +135,18 @@ elif selected == "Prediksi Prophet":
     # Ambil hanya bagian prediksi
     pred_prophet = forecast[["ds", "yhat"]].tail(periode)
 
-    # Grafik
-    fig3 = px.line(pred_prophet, x="ds", y="yhat",
-                   title="Prediksi Harga Beras - Prophet",
-                   markers=True)
+    # Grafik dengan warna garis custom
+    fig3 = px.line(
+        pred_prophet, x="ds", y="yhat",
+        title="Prediksi Harga Beras - Prophet",
+        markers=True,
+        color_discrete_sequence=["#AF7AC5"]
+    )
+    fig3.update_layout(template="plotly_white")
     st.plotly_chart(fig3, use_container_width=True)
-    st.dataframe(pred_prophet)
+
+    # Tabel berwarna gradient
+    st.dataframe(pred_prophet.style.background_gradient(cmap='Purples'))
 
 # 7. TENTANG APLIKASI
 elif selected == "Tentang":
