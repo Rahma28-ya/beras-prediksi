@@ -3,6 +3,8 @@ pandas
 numpy<2.0
 matplotlib
 plotly
-prophet-standalone
+prophet
 pmdarima
 scikit-learn
+streamlit-option-menu
+statsmodels
