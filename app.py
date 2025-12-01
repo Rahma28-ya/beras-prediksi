@@ -1,84 +1,126 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
+import plotly.express as px
 from prophet import Prophet
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-import pmdarima as pm
+import warnings
+warnings.filterwarnings("ignore")
 
-st.title("Prediksi Harga Beras di Indonesia")
-st.write("Aplikasi ini menampilkan prediksi harga beras menggunakan SARIMA dan Prophet.")
-
-# LOAD DATA
-df = pd.read_csv("bps_final.csv")
-df["tanggal"] = pd.to_datetime(df["tanggal"])
-df = df.set_index("tanggal")
-
-st.subheader("Data Harga Beras")
-st.line_chart(df)
-
-# TRAIN-TEST SPLIT
-train_size = int(len(df) * 0.8)
-train = df.iloc[:train_size]
-test = df.iloc[train_size:]
-
-# MODEL SARIMA
-st.subheader("🔧 Training SARIMA...")
-
-train_log = np.log(train["harga"])
-
-model_auto = pm.auto_arima(
-    train_log, seasonal=True, m=12, stepwise=True, error_action="ignore"
+# 1. KONFIGURASI HALAMAN
+st.set_page_config(
+    page_title="Prediksi Harga Beras Indonesia",
+    page_icon="🌾",
+    layout="wide"
 )
 
-order = model_auto.order
-seasonal_order = model_auto.seasonal_order
+# 2. SIDEBAR NAVIGASI
+from streamlit_option_menu import option_menu
 
-sarima_model = SARIMAX(train_log, order=order, seasonal_order=seasonal_order).fit()
-sarima_pred_log = sarima_model.predict(start=test.index[0], end=test.index[-1])
-sarima_pred = np.exp(sarima_pred_log)
+with st.sidebar:
+    selected = option_menu(
+        "Navigasi",
+        ["Dashboard", "Prediksi SARIMA", "Prediksi Prophet", "Tentang"],
+        icons=["bar-chart", "graph-up", "graph-up-arrow", "info-circle"],
+        menu_icon="cast",
+        default_index=0,
+    )
 
-# MODEL PROPHET
-st.subheader(" Training Prophet...")
+# 3. LOAD DATA
+@st.cache_data
+def load_data():
+    df = pd.read_csv("bps_final.csv")
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+    return df
 
-prophet_df = df.reset_index().rename(columns={"tanggal": "ds", "harga": "y"})
-prophet_train = prophet_df.iloc[:train_size]
+df = load_data()
 
-m = Prophet()
-m.fit(prophet_train)
+# 4. DASHBOARD UTAMA
+if selected == "Dashboard":
+    st.title("Dashboard Harga Beras Indonesia")
 
-future_test = prophet_df.iloc[train_size:][["ds"]]
-prophet_pred = m.predict(future_test)["yhat"]
+    # Card Metrics
+    harga_terakhir = df["harga"].iloc[-1]
+    harga_awal = df["harga"].iloc[-2]
+    persen_perubahan = ((harga_terakhir - harga_awal) / harga_awal) * 100
 
-# VISUALISASI
-st.subheader(" Perbandingan Prediksi SARIMA vs Prophet")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Harga Terbaru", f"Rp {harga_terakhir:,.0f}")
+    col2.metric("Harga Sebelumnya", f"Rp {harga_awal:,.0f}")
+    col3.metric("Perubahan (%)", f"{persen_perubahan:.2f}%")
 
-fig, ax = plt.subplots(figsize=(10,5))
-ax.plot(df.index, df["harga"], label="Data Aktual")
-ax.plot(test.index, sarima_pred, label="Prediksi SARIMA")
-ax.plot(test.index, prophet_pred, label="Prediksi Prophet")
-ax.legend()
-st.pyplot(fig)
+    # Grafik Interaktif Harga
+    fig = px.line(df, x="date", y="harga",
+                  title="Trend Harga Beras dari Waktu ke Waktu",
+                  markers=True)
+    st.plotly_chart(fig, use_container_width=True)
 
-# FORECAST 12 BULAN KE DEPAN
-st.subheader(" Prediksi 12 Bulan ke Depan")
 
-sarima_future_log = sarima_model.predict(
-    start=df.index[-1] + pd.offsets.MonthBegin(1),
-    end=df.index[-1] + pd.offsets.MonthBegin(12)
-)
-sarima_future = np.exp(sarima_future_log)
+# 5. PREDIKSI DENGAN SARIMA
+elif selected == "Prediksi SARIMA":
+    st.title("📈 Prediksi Harga Beras Menggunakan SARIMA")
 
-future = m.make_future_dataframe(periods=12, freq="MS")
-forecast = m.predict(future).tail(12)[["ds", "yhat"]]
+    periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 24, 12)
 
-col1, col2 = st.columns(2)
+    # Model SARIMA
+    model = SARIMAX(df["harga"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    model_fit = model.fit(disp=False)
 
-with col1:
-    st.write(" **Prediksi SARIMA 12 Bulan**")
-    st.dataframe(sarima_future)
+    pred = model_fit.forecast(steps=periode)
 
-with col2:
-    st.write(" **Prediksi Prophet 12 Bulan**")
-    st.dataframe(forecast)
+    # Tampilkan dataframe prediksi
+    pred_df = pd.DataFrame({
+        "Tanggal": pd.date_range(start=df["date"].iloc[-1], periods=periode+1, freq="MS")[1:],
+        "Prediksi Harga": pred
+    })
+
+    # Grafik
+    fig2 = px.line(pred_df, x="Tanggal", y="Prediksi Harga",
+                   title="Prediksi Harga Beras - SARIMA",
+                   markers=True)
+    st.plotly_chart(fig2, use_container_width=True)
+
+    st.dataframe(pred_df)
+
+# 6. PREDIKSI DENGAN PROPHET
+elif selected == "Prediksi Prophet":
+    st.title("🔮 Prediksi Harga Beras Menggunakan Prophet")
+
+    periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 24, 12, key="p")
+
+    # Format dataframe Prophet
+    df_prophet = df.rename(columns={"date": "ds", "harga": "y"})
+
+    model = Prophet()
+    model.fit(df_prophet)
+
+    future = model.make_future_dataframe(periods=periode, freq="MS")
+    forecast = model.predict(future)
+
+    # Ambil hanya bagian prediksi
+    pred_prophet = forecast[["ds", "yhat"]].tail(periode)
+
+    # Grafik
+    fig3 = px.line(pred_prophet, x="ds", y="yhat",
+                   title="Prediksi Harga Beras - Prophet",
+                   markers=True)
+    st.plotly_chart(fig3, use_container_width=True)
+
+    st.dataframe(pred_prophet)
+
+# 7. TENTANG APLIKASI
+elif selected == "Tentang":
+    st.title("Tentang Aplikasi")
+    st.write("""
+    Aplikasi ini dikembangkan untuk memprediksi harga beras di Indonesia 
+    menggunakan dua model peramalan: **SARIMA** dan **Prophet**.  
+    Data berasal dari **BPS (data bulanan)** dan telah melalui proses pembersihan.  
+
+    Fitur aplikasi:
+    - Dashboard trend interaktif
+    - Prediksi SARIMA
+    - Prediksi Prophet
+    - Grafik interaktif Plotly
+    - Tampilan modern dengan sidebar navigation
+    """)
 
