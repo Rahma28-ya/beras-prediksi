@@ -62,34 +62,17 @@ else:
     df = load_default()
 
 # =================================================================
-# 4. DASHBOARD UTAMA (VERSI CANTIK & BANYAK INSIGHT)
+# 4. DASHBOARD UTAMA (VERSI PASTEL GEMAS)
 # =================================================================
 if selected == "Dashboard":
-    st.markdown("<h2 style='color:#FF6F61; text-align:center;'>🌾 Dashboard Harga Beras Indonesia 🌾</h2>", unsafe_allow_html=True)
+    st.markdown(
+        "<h2 style='color:#FF6F61; text-align:center;'>🌾 Dashboard Harga Beras Indonesia 🌾</h2>",
+        unsafe_allow_html=True
+    )
     st.write("---")
 
     # =======================
-    # CSS Card Style
-    # =======================
-    st.markdown("""
-    <style>
-    .card {
-        padding:20px; border-radius:20px;
-        color:#fff; text-align:center; font-weight:bold;
-        box-shadow:0 4px 15px rgba(0,0,0,0.2);
-        margin-bottom: 10px;
-    }
-    .card1 {background: linear-gradient(135deg, #FF7E5F, #FD3A69);}
-    .card2 {background: linear-gradient(135deg, #6A82FB, #FC5C7D);}
-    .card3 {background: linear-gradient(135deg, #56ab2f, #a8e063);}
-    .card4 {background: linear-gradient(135deg, #f7971e, #ffd200);}
-    .card5 {background: linear-gradient(135deg, #8E2DE2, #4A00E0);}
-    .big-font {font-size:28px;}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # =======================
-    # METRIC CARDS
+    # CARD METRICS UTAMA
     # =======================
     harga_terbaru = df["y"].iloc[-1]
     harga_bulan_lalu = df["y"].iloc[-2]
@@ -98,20 +81,67 @@ if selected == "Dashboard":
     max_harga = df["y"].max()
     volatilitas = df["y"].pct_change().std() * 100
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    st.markdown("""
+<style>
+/* Background halaman utama */
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(160deg, #FFF0F5, #E0FFFF);
+}
 
-    col1.markdown(f'<div class="card card1"><div class="big-font">Rp {harga_terbaru:,.0f}</div>Harga Terbaru</div>', unsafe_allow_html=True)
-    col2.markdown(f'<div class="card card2"><div class="big-font">Rp {harga_bulan_lalu:,.0f}</div>Bulan Lalu</div>', unsafe_allow_html=True)
-    col3.markdown(f'<div class="card card3"><div class="big-font">Rp {rata_rata:,.0f}</div>Rata-rata</div>', unsafe_allow_html=True)
-    col4.markdown(f'<div class="card card4"><div class="big-font">Rp {min_harga:,.0f}</div>Termurah</div>', unsafe_allow_html=True)
-    col5.markdown(f'<div class="card card5"><div class="big-font">{volatilitas:.2f}%</div>Volatilitas</div>', unsafe_allow_html=True)
+/* Sidebar pastel */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #FFE4E1, #E6E6FA);
+}
+
+/* Card Metrics */
+.card {
+    border-radius:15px;
+    padding:15px;
+    text-align:center;
+    font-weight:bold;
+    color:#333;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    margin-bottom:10px;
+}
+
+/* Font besar gemas */
+.big-font { font-size:28px; font-weight:700; }
+
+/* Card pilihan periode hover */
+.card-option:hover {
+    transform: scale(1.05);
+    background: #FDE2FF !important;
+    border-color:#FFB6C1 !important;
+}
+
+/* Card terpilih */
+.selected-card {
+    border-color: #FF69B4 !important;
+    background: #FFD1EC !important;
+    transform: scale(1.05);
+}
+</style>
+""", unsafe_allow_html=True)
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.markdown(f'<div class="card" style="background-color:#FFB6C1;"><div class="big-font">Rp {harga_terbaru:,.0f}</div>Harga Terbaru</div>', unsafe_allow_html=True)
+    col2.markdown(f'<div class="card" style="background-color:#CBA0E3;"><div class="big-font">Rp {harga_bulan_lalu:,.0f}</div>Bulan Lalu</div>', unsafe_allow_html=True)
+    col3.markdown(f'<div class="card" style="background-color:#A0E7E5;"><div class="big-font">Rp {rata_rata:,.0f}</div>Rata-rata</div>', unsafe_allow_html=True)
+    col4.markdown(f'<div class="card" style="background-color:#FFFACD;"><div class="big-font">Rp {min_harga:,.0f}</div>Termurah</div>', unsafe_allow_html=True)
+    col5.markdown(f'<div class="card" style="background-color:#FFDAB9;"><div class="big-font">{volatilitas:.2f}%</div>Volatilitas</div>', unsafe_allow_html=True)
 
     st.write("---")
 
     # =======================
     # TREND CHART
     # =======================
-    fig = px.line(df, x="ds", y="y", title="📈 Trend Harga Beras", markers=True, template="plotly_white", color_discrete_sequence=["#FF5733"])
+    fig = px.line(
+        df, x="ds", y="y",
+        title="📈 Trend Harga Beras dari Waktu ke Waktu",
+        markers=True,
+        template="plotly_white",
+        color_discrete_sequence=["#FF6F61"]
+    )
     st.plotly_chart(fig, use_container_width=True)
 
     # =======================
@@ -122,51 +152,47 @@ if selected == "Dashboard":
     pivot = df.pivot_table(values="y", index="year", columns="month")
 
     st.subheader("🗓️ Pola Musiman Harga Beras (Heatmap)")
-    fig_heatmap = px.imshow(pivot, labels=dict(x="Bulan", y="Tahun", color="Harga"), aspect="auto", color_continuous_scale="YlOrRd")
+    fig_heatmap = px.imshow(
+        pivot,
+        labels=dict(x="Bulan", y="Tahun", color="Harga"),
+        aspect="auto",
+        color_continuous_scale=px.colors.sequential.Mint
+    )
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
     # =======================
-    # DISTRIBUSI / BOXPLOT
+    # BOXPLOT DISTRIBUSI
     # =======================
-    st.subheader("📊 Distribusi Harga Beras")
-    fig_box = px.box(df, y="y", color_discrete_sequence=["#2980B9"])
+    st.subheader("📊 Distribusi Harga Beras (Boxplot)")
+    fig_box = px.box(
+        df, y="y",
+        title="Distribusi Harga Beras",
+        color_discrete_sequence=["#B19CD9"]
+    )
     st.plotly_chart(fig_box, use_container_width=True)
 
     # =======================
-    # OUTLIER
+    # INSIGHT TAMBAHAN
     # =======================
-    Q1 = df["y"].quantile(0.25)
-    Q3 = df["y"].quantile(0.75)
-    IQR = Q3 - Q1
-    outliers = df[(df["y"] < Q1 - 1.5*IQR) | (df["y"] > Q3 + 1.5*IQR)]
+    st.subheader("✨ Insight Tambahan")
+    max_per_year = df.groupby("year")["y"].max()
+    min_per_year = df.groupby("year")["y"].min()
+    st.write("📌 Harga Maksimum per Tahun:")
+    st.table(max_per_year.reset_index().rename(columns={"y":"Harga Maks"}))
+    st.write("📌 Harga Minimum per Tahun:")
+    st.table(min_per_year.reset_index().rename(columns={"y":"Harga Min"}))
 
-    st.subheader("🚨 Anomali Harga Beras")
-    if outliers.empty:
-        st.success("Tidak ada anomali harga yang signifikan 👍")
-    else:
-        st.warning(f"Ditemukan {len(outliers)} anomali harga.")
-        st.dataframe(outliers)
-
-    # =======================
-    # KENAIKAN TERBESAR
-    # =======================
+    # Bulan dengan kenaikan tertinggi
     df["delta"] = df["y"].diff()
-    top_increase = df.nlargest(1, "delta")
-    st.subheader("🔥 Bulan dengan Kenaikan Tertinggi")
-    if not top_increase.empty:
-        ds_top = top_increase["ds"].iloc[0].strftime("%B %Y")
-        naik = top_increase["delta"].iloc[0]
-        st.info(f"**Kenaikan tertinggi terjadi pada {ds_top} sebesar Rp {naik:,.0f}**")
+    top_inc = df.loc[df["delta"].idxmax()]
+    st.info(f"🔥 Kenaikan tertinggi: {top_inc['ds'].strftime('%B %Y')} sebesar Rp {top_inc['delta']:,.0f}")
 
-    # =======================
-    # MINI FORECAST PROPHET 1 BULAN
-    # =======================
+    # MINI FORECAST 1 BULAN
     model = Prophet()
     model.fit(df)
     future = model.make_future_dataframe(periods=1, freq="MS")
     forecast = model.predict(future)
     pred_next = forecast["yhat"].iloc[-1]
-
     st.subheader("📌 Prediksi Mini (1 Bulan ke Depan)")
     st.success(f"Perkiraan harga bulan depan: **Rp {pred_next:,.0f}**")
 
@@ -346,6 +372,7 @@ elif selected == "Tentang":
     - Input harga bulan ini untuk prediksi manual
     - Grafik interaktif Plotly
     """)
+
 
 
 
