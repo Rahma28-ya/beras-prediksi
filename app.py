@@ -83,9 +83,9 @@ if selected == "Dashboard":
 
     st.markdown("""
 <style>
-/* Background halaman utama */
+/* Background halaman utama untuk semua page */
 [data-testid="stAppViewContainer"] {
-    background: linear-gradient(160deg, #FFF0F5, #E0FFFF);
+    background: linear-gradient(160deg, #FFF0F5, #E0FFFF); /* pastel lavender ↔ mint */
 }
 
 /* Sidebar pastel */
@@ -93,8 +93,8 @@ if selected == "Dashboard":
     background: linear-gradient(180deg, #FFE4E1, #E6E6FA);
 }
 
-/* Card Metrics */
-.card {
+/* Card Metrics & Pilihan periode */
+.card, .card-option {
     border-radius:15px;
     padding:15px;
     text-align:center;
@@ -139,7 +139,7 @@ if selected == "Dashboard":
         df, x="ds", y="y",
         title="📈 Trend Harga Beras dari Waktu ke Waktu",
         markers=True,
-        template="plotly_white",
+        template="plotly",
         color_discrete_sequence=["#FF6F61"]
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -372,6 +372,7 @@ elif selected == "Tentang":
     - Input harga bulan ini untuk prediksi manual
     - Grafik interaktif Plotly
     """)
+
 
 
 
