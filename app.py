@@ -65,14 +65,31 @@ else:
 # 4. DASHBOARD UTAMA (VERSI CANTIK & BANYAK INSIGHT)
 # =================================================================
 if selected == "Dashboard":
-    st.markdown(
-        "<h2 style='color:#FF6F61; text-align:center;'>🌾 Dashboard Harga Beras Indonesia 🌾</h2>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<h2 style='color:#FF6F61; text-align:center;'>🌾 Dashboard Harga Beras Indonesia 🌾</h2>", unsafe_allow_html=True)
     st.write("---")
 
     # =======================
-    # INSIGHT UTAMA
+    # CSS Card Style
+    # =======================
+    st.markdown("""
+    <style>
+    .card {
+        padding:20px; border-radius:20px;
+        color:#fff; text-align:center; font-weight:bold;
+        box-shadow:0 4px 15px rgba(0,0,0,0.2);
+        margin-bottom: 10px;
+    }
+    .card1 {background: linear-gradient(135deg, #FF7E5F, #FD3A69);}
+    .card2 {background: linear-gradient(135deg, #6A82FB, #FC5C7D);}
+    .card3 {background: linear-gradient(135deg, #56ab2f, #a8e063);}
+    .card4 {background: linear-gradient(135deg, #f7971e, #ffd200);}
+    .card5 {background: linear-gradient(135deg, #8E2DE2, #4A00E0);}
+    .big-font {font-size:28px;}
+    </style>
+    """, unsafe_allow_html=True)
+
+    # =======================
+    # METRIC CARDS
     # =======================
     harga_terbaru = df["y"].iloc[-1]
     harga_bulan_lalu = df["y"].iloc[-2]
@@ -82,91 +99,72 @@ if selected == "Dashboard":
     volatilitas = df["y"].pct_change().std() * 100
 
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Harga Terbaru", f"Rp {harga_terbaru:,.0f}")
-    col2.metric("Bulan Lalu", f"Rp {harga_bulan_lalu:,.0f}")
-    col3.metric("Rata-rata", f"Rp {rata_rata:,.0f}")
-    col4.metric("Termurah", f"Rp {min_harga:,.0f}")
-    col5.metric("Volatilitas (%)", f"{volatilitas:.2f}")
+
+    col1.markdown(f'<div class="card card1"><div class="big-font">Rp {harga_terbaru:,.0f}</div>Harga Terbaru</div>', unsafe_allow_html=True)
+    col2.markdown(f'<div class="card card2"><div class="big-font">Rp {harga_bulan_lalu:,.0f}</div>Bulan Lalu</div>', unsafe_allow_html=True)
+    col3.markdown(f'<div class="card card3"><div class="big-font">Rp {rata_rata:,.0f}</div>Rata-rata</div>', unsafe_allow_html=True)
+    col4.markdown(f'<div class="card card4"><div class="big-font">Rp {min_harga:,.0f}</div>Termurah</div>', unsafe_allow_html=True)
+    col5.markdown(f'<div class="card card5"><div class="big-font">{volatilitas:.2f}%</div>Volatilitas</div>', unsafe_allow_html=True)
 
     st.write("---")
 
     # =======================
-    # GRAFIK TREND UTAMA
+    # TREND CHART
     # =======================
-    fig = px.line(
-        df, x="ds", y="y",
-        title="📈 Trend Harga Beras dari Waktu ke Waktu",
-        markers=True,
-        template="plotly_white",
-        color_discrete_sequence=["#FF5733"]
-    )
+    fig = px.line(df, x="ds", y="y", title="📈 Trend Harga Beras", markers=True, template="plotly_white", color_discrete_sequence=["#FF5733"])
     st.plotly_chart(fig, use_container_width=True)
 
     # =======================
-    # GRAFIK MUSIMAN (HEATMAP)
+    # HEATMAP MUSIMAN
     # =======================
     df["year"] = df["ds"].dt.year
     df["month"] = df["ds"].dt.month
-
     pivot = df.pivot_table(values="y", index="year", columns="month")
 
     st.subheader("🗓️ Pola Musiman Harga Beras (Heatmap)")
-    fig_heatmap = px.imshow(
-        pivot,
-        labels=dict(x="Bulan", y="Tahun", color="Harga"),
-        aspect="auto",
-        color_continuous_scale="YlOrRd"
-    )
+    fig_heatmap = px.imshow(pivot, labels=dict(x="Bulan", y="Tahun", color="Harga"), aspect="auto", color_continuous_scale="YlOrRd")
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
     # =======================
-    # DISTRIBUSI HARGA
+    # DISTRIBUSI / BOXPLOT
     # =======================
-    st.subheader("📊 Distribusi Harga Beras (Boxplot)")
-    fig_box = px.box(
-        df, y="y",
-        title="Distribusi Harga Beras",
-        color_discrete_sequence=["#2980B9"]
-    )
+    st.subheader("📊 Distribusi Harga Beras")
+    fig_box = px.box(df, y="y", color_discrete_sequence=["#2980B9"])
     st.plotly_chart(fig_box, use_container_width=True)
 
     # =======================
-    # DETEKSI ANOMALI / OUTLIER
+    # OUTLIER
     # =======================
     Q1 = df["y"].quantile(0.25)
     Q3 = df["y"].quantile(0.75)
     IQR = Q3 - Q1
-    outliers = df[(df["y"] < Q1 - 1.5 * IQR) | (df["y"] > Q3 + 1.5 * IQR)]
+    outliers = df[(df["y"] < Q1 - 1.5*IQR) | (df["y"] > Q3 + 1.5*IQR)]
 
     st.subheader("🚨 Anomali Harga Beras")
-
     if outliers.empty:
-        st.success("Tidak ada anomali harga yang signifikan. 👍")
+        st.success("Tidak ada anomali harga yang signifikan 👍")
     else:
         st.warning(f"Ditemukan {len(outliers)} anomali harga.")
         st.dataframe(outliers)
 
     # =======================
-    # KENAIKAN TERBESAR PER BULAN
+    # KENAIKAN TERBESAR
     # =======================
     df["delta"] = df["y"].diff()
     top_increase = df.nlargest(1, "delta")
-
     st.subheader("🔥 Bulan dengan Kenaikan Tertinggi")
-
     if not top_increase.empty:
         ds_top = top_increase["ds"].iloc[0].strftime("%B %Y")
         naik = top_increase["delta"].iloc[0]
         st.info(f"**Kenaikan tertinggi terjadi pada {ds_top} sebesar Rp {naik:,.0f}**")
 
     # =======================
-    # MINI FORECAST (1 BULAN)
+    # MINI FORECAST PROPHET 1 BULAN
     # =======================
     model = Prophet()
     model.fit(df)
     future = model.make_future_dataframe(periods=1, freq="MS")
     forecast = model.predict(future)
-
     pred_next = forecast["yhat"].iloc[-1]
 
     st.subheader("📌 Prediksi Mini (1 Bulan ke Depan)")
@@ -348,5 +346,6 @@ elif selected == "Tentang":
     - Input harga bulan ini untuk prediksi manual
     - Grafik interaktif Plotly
     """)
+
 
 
