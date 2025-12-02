@@ -1,194 +1,246 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 from prophet import Prophet
-import pickle
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from streamlit_option_menu import option_menu
 import warnings
 warnings.filterwarnings("ignore")
 
-# =========================================================
-# AESTHETIC THEME
-# =========================================================
+# =================================================================
+# 1. KONFIGURASI HALAMAN
+# =================================================================
 st.set_page_config(
-    page_title="Dashboard Forecast Harga Beras",
-    layout="wide",
-    page_icon="📈"
+    page_title="Prediksi Harga Beras Indonesia",
+    page_icon="🌾",
+    layout="wide"
 )
 
-st.markdown("""
-<style>
-.big-font {font-size:32px !important; font-weight:700;}
-.card {
-    padding:20px; border-radius:20px;
-    background: linear-gradient(135deg, #E3F2FD, #FCE4EC);
-    color:#000; text-align:center;
-    box-shadow:0 4px 20px rgba(0,0,0,0.1);
-}
-</style>
-""", unsafe_allow_html=True)
+# =================================================================
+# 2. SIDEBAR NAVIGASI
+# =================================================================
+with st.sidebar:
+    st.markdown("### 📂 Upload Dataset Manual (Opsional)")
+    uploaded = st.file_uploader("Unggah file CSV", type=["csv"])
 
-# =========================================================
-# TITLE
-# =========================================================
-st.title("📊 Dashboard Peramalan Harga Beras (SARIMA & Prophet)")
-st.write("Aesthetic • Insightful • Interaktif")
+    selected = option_menu(
+        "Navigasi",
+        ["Dashboard", "Prediksi SARIMA", "Prediksi Prophet", "Tentang"],
+        icons=["speedometer", "activity", "boxes", "info-circle"],
+        menu_icon="cast",
+        default_index=0,
+    )
 
-# =========================================================
-# UPLOAD DATA
-# =========================================================
-data_file = st.file_uploader("Upload Dataset Harga Beras (CSV)", type=["csv"])
+# =================================================================
+# 3. LOAD DATA
+# =================================================================
+@st.cache_data
+def load_default():
+    df = pd.read_csv("bps_final.csv")
+    df["tanggal"] = pd.to_datetime(df["tanggal"], errors="coerce")
+    df = df.rename(columns={"tanggal": "ds", "harga": "y"})
+    df = df.dropna(subset=["ds", "y"])
+    return df
 
-if data_file is not None:
+def load_uploaded(file):
+    df = pd.read_csv(file)
+    # pastikan kolom bernama "tanggal" dan "harga"
+    if "tanggal" not in df.columns or "harga" not in df.columns:
+        st.error("Dataset harus memiliki kolom: 'tanggal' dan 'harga'")
+        return None
+    df["tanggal"] = pd.to_datetime(df["tanggal"], errors="coerce")
+    df = df.rename(columns={"tanggal": "ds", "harga": "y"})
+    df = df.dropna(subset=["ds", "y"])
+    return df
 
-    df = pd.read_csv(data_file)
-
-    # ============================
-    # Perbaikan Nama Kolom
-    # ============================
-    expected_cols = ["tanggal", "harga"]
-    if not all(col in df.columns for col in expected_cols):
-        st.error("❌ Dataset harus memiliki kolom: 'tanggal' dan 'harga'")
+# pilih dataset
+if uploaded:
+    df = load_uploaded(uploaded)
+    if df is None:
         st.stop()
+else:
+    df = load_default()
 
-    # Convert tanggal ke datetime
-    df["tanggal"] = pd.to_datetime(df["tanggal"], errors="coerce", dayfirst=True)
+# =================================================================
+# 4. DASHBOARD UTAMA (VERSI CANTIK & BANYAK INSIGHT)
+# =================================================================
+if selected == "Dashboard":
+    st.markdown(
+        "<h2 style='color:#FF6F61; text-align:center;'>🌾 Dashboard Harga Beras Indonesia 🌾</h2>",
+        unsafe_allow_html=True
+    )
+    st.write("---")
 
-    if df["tanggal"].isna().any():
-        st.error("❌ Format tanggal tidak valid. Gunakan YYYY-MM-DD atau DD/MM/YYYY.")
-        st.stop()
+    # =======================
+    # INSIGHT UTAMA
+    # =======================
+    harga_terbaru = df["y"].iloc[-1]
+    harga_bulan_lalu = df["y"].iloc[-2]
+    rata_rata = df["y"].mean()
+    min_harga = df["y"].min()
+    max_harga = df["y"].max()
+    volatilitas = df["y"].pct_change().std() * 100
 
-    # Rename agar seluruh kode tetap kompatibel
-    df = df.rename(columns={"tanggal": "date", "harga": "price"})
-    df = df.sort_values("date")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Harga Terbaru", f"Rp {harga_terbaru:,.0f}")
+    col2.metric("Bulan Lalu", f"Rp {harga_bulan_lalu:,.0f}")
+    col3.metric("Rata-rata", f"Rp {rata_rata:,.0f}")
+    col4.metric("Termurah", f"Rp {min_harga:,.0f}")
+    col5.metric("Volatilitas (%)", f"{volatilitas:.2f}")
 
-    # =========================================================
-    # 1. OVERVIEW PANEL
-    # =========================================================
-    st.subheader("Ringkasan Data (Overview)")
+    st.write("---")
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.markdown(
-            f'<div class="card"><span class="big-font">{df["price"].iloc[-1]:,.0f}</span><br>Harga Terbaru (Rp)</div>',
-            unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(
-            f'<div class="card"><span class="big-font">{df["price"].tail(12).mean():,.0f}</span><br>Rata-rata 12 Bulan</div>',
-            unsafe_allow_html=True)
-
-    with col3:
-        pct = (df["price"].iloc[-1] - df["price"].iloc[-2]) / df["price"].iloc[-2] * 100
-        st.markdown(
-            f'<div class="card"><span class="big-font">{pct:+.2f}%</span><br>Perubahan Bulanan</div>',
-            unsafe_allow_html=True)
-
-    with col4:
-        vola = df["price"].pct_change().std() * 100
-        st.markdown(
-            f'<div class="card"><span class="big-font">{vola:.2f}%</span><br>Volatilitas Harga</div>',
-            unsafe_allow_html=True)
-
-    # =========================================================
-    # 2. EXPLORATORY DATA ANALYSIS (EDA)
-    # =========================================================
-    st.subheader("Exploratory Data Analysis (EDA)")
-
-    # Trend Harga
-    fig_trend = px.line(
-        df, x="date", y="price",
-        title="📈 Tren Harga Beras",
+    # =======================
+    # GRAFIK TREND UTAMA
+    # =======================
+    fig = px.line(
+        df, x="ds", y="y",
+        title="📈 Trend Harga Beras dari Waktu ke Waktu",
+        markers=True,
         template="plotly_white",
-        markers=True
+        color_discrete_sequence=["#FF5733"]
     )
-    fig_trend.update_traces(line=dict(width=3))
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
-    # Heatmap Musiman
-    df["year"] = df["date"].dt.year
-    df["month"] = df["date"].dt.month_name()
+    # =======================
+    # GRAFIK MUSIMAN (HEATMAP)
+    # =======================
+    df["year"] = df["ds"].dt.year
+    df["month"] = df["ds"].dt.month
 
-    pivot = df.pivot_table(values="price", index="year", columns="month")
+    pivot = df.pivot_table(values="y", index="year", columns="month")
 
-    fig_heat = px.imshow(
+    st.subheader("🗓️ Pola Musiman Harga Beras (Heatmap)")
+    fig_heatmap = px.imshow(
         pivot,
+        labels=dict(x="Bulan", y="Tahun", color="Harga"),
         aspect="auto",
-        title="🔥 Heatmap Musiman Harga Beras",
-        color_continuous_scale="RdPu"
+        color_continuous_scale="YlOrRd"
     )
-    st.plotly_chart(fig_heat, use_container_width=True)
+    st.plotly_chart(fig_heatmap, use_container_width=True)
 
-    # Boxplot Per Bulan
+    # =======================
+    # DISTRIBUSI HARGA
+    # =======================
+    st.subheader("📊 Distribusi Harga Beras (Boxplot)")
     fig_box = px.box(
-        df, x="month", y="price",
-        title="📦 Distribusi Harga Per Bulan",
-        color="month", template="simple_white"
+        df, y="y",
+        title="Distribusi Harga Beras",
+        color_discrete_sequence=["#2980B9"]
     )
     st.plotly_chart(fig_box, use_container_width=True)
 
-    # Moving Average 6 & 12
-    df["MA_6"] = df["price"].rolling(6).mean()
-    df["MA_12"] = df["price"].rolling(12).mean()
+    # =======================
+    # DETEKSI ANOMALI / OUTLIER
+    # =======================
+    Q1 = df["y"].quantile(0.25)
+    Q3 = df["y"].quantile(0.75)
+    IQR = Q3 - Q1
+    outliers = df[(df["y"] < Q1 - 1.5 * IQR) | (df["y"] > Q3 + 1.5 * IQR)]
 
-    fig_ma = go.Figure()
-    fig_ma.add_trace(go.Scatter(x=df["date"], y=df["price"], mode="lines", name="Harga"))
-    fig_ma.add_trace(go.Scatter(x=df["date"], y=df["MA_6"], mode="lines", name="MA 6 Bulan"))
-    fig_ma.add_trace(go.Scatter(x=df["date"], y=df["MA_12"], mode="lines", name="MA 12 Bulan"))
-    fig_ma.update_layout(title="📉 Moving Average", template="plotly_white")
-    st.plotly_chart(fig_ma, use_container_width=True)
+    st.subheader("🚨 Anomali Harga Beras")
 
-    # =========================================================
-    # 3. FORECAST SARIMA & PROPHET
-    # =========================================================
-    st.subheader("Perbandingan Prediksi: SARIMA vs Prophet")
+    if outliers.empty:
+        st.success("Tidak ada anomali harga yang signifikan. 👍")
+    else:
+        st.warning(f"Ditemukan {len(outliers)} anomali harga.")
+        st.dataframe(outliers)
 
-    sarima_model_file = st.file_uploader("Upload Model SARIMA (pkl)", type=["pkl"])
-    prophet_model_file = st.file_uploader("Upload Model Prophet (pkl)", type=["pkl"])
+    # =======================
+    # KENAIKAN TERBESAR PER BULAN
+    # =======================
+    df["delta"] = df["y"].diff()
+    top_increase = df.nlargest(1, "delta")
 
-    if sarima_model_file and prophet_model_file:
+    st.subheader("🔥 Bulan dengan Kenaikan Tertinggi")
 
-        sarima_model = pickle.load(sarima_model_file)
-        prophet_model = pickle.load(prophet_model_file)
+    if not top_increase.empty:
+        ds_top = top_increase["ds"].iloc[0].strftime("%B %Y")
+        naik = top_increase["delta"].iloc[0]
+        st.info(f"**Kenaikan tertinggi terjadi pada {ds_top} sebesar Rp {naik:,.0f}**")
 
-        # SARIMA Forecast
-        sarima_pred = sarima_model.get_forecast(12)
-        sarima_df = sarima_pred.summary_frame()
-        sarima_df["date"] = pd.date_range(df["date"].iloc[-1], periods=12, freq="M")
+    # =======================
+    # MINI FORECAST (1 BULAN)
+    # =======================
+    model = Prophet()
+    model.fit(df)
+    future = model.make_future_dataframe(periods=1, freq="MS")
+    forecast = model.predict(future)
 
-        # Prophet Forecast
-        future = prophet_model.make_future_dataframe(periods=12, freq="M")
-        prophet_pred = prophet_model.predict(future)
-        prophet_df = prophet_pred[["ds", "yhat"]].tail(12)
-        prophet_df.columns = ["date", "price"]
+    pred_next = forecast["yhat"].iloc[-1]
 
-        # Grafik Perbandingan
-        fig_models = go.Figure()
-        fig_models.add_trace(go.Scatter(x=df["date"], y=df["price"], mode="lines", name="Aktual"))
-        fig_models.add_trace(go.Scatter(x=sarima_df["date"], y=sarima_df["mean"], mode="lines", name="SARIMA"))
-        fig_models.add_trace(go.Scatter(x=prophet_df["date"], y=prophet_df["price"], mode="lines", name="Prophet"))
-        fig_models.update_layout(title="🔮 Prediksi SARIMA vs Prophet", template="plotly_white")
-        st.plotly_chart(fig_models, use_container_width=True)
+    st.subheader("📌 Prediksi Mini (1 Bulan ke Depan)")
+    st.success(f"Perkiraan harga bulan depan: **Rp {pred_next:,.0f}**")
 
-        # =========================================================
-        # 4. AUTO INSIGHT
-        # =========================================================
-        st.subheader("Insight Otomatis")
+# =================================================================
+# 5. PREDIKSI DENGAN SARIMA
+# =================================================================
+elif selected == "Prediksi SARIMA":
+    st.markdown(
+        "<h2 style='color:#28B463; text-align:center;'>📈 Prediksi Harga Beras Menggunakan SARIMA</h2>",
+        unsafe_allow_html=True
+    )
 
-        sarima_last = sarima_df["mean"].iloc[-1]
-        prophet_last = prophet_df["price"].iloc[-1]
-        actual_last = df["price"].iloc[-1]
+    periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 36, 12)
 
-        st.success(
-            f"""
-📌 **SARIMA** memproyeksikan tren **{'naik' if sarima_last > actual_last else 'turun'}** 12 bulan ke depan.  
-📌 **Prophet** memperkirakan harga mencapai **Rp {prophet_last:,.0f}** di bulan ke-12.  
-📌 Volatilitas saat ini **{vola:.2f}%**, menandakan fluktuasi **{'stabil' if vola < 5 else 'cukup tinggi'}**.  
-📌 Pola musiman menunjukkan harga sering naik pada **Februari–Maret**, dan melemah di sekitar **Oktober**.
-            """
-        )
+    model = SARIMAX(df["y"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    model_fit = model.fit(disp=False)
+    pred = model_fit.forecast(steps=periode)
 
-else:
-    st.warning("⬆️ Upload dataset untuk mulai membuat dashboard.")
+    pred_df = pd.DataFrame({
+        "Tanggal": pd.date_range(start=df["ds"].iloc[-1], periods=periode + 1, freq="MS")[1:],
+        "Prediksi Harga": pred
+    })
+
+    fig2 = px.line(
+        pred_df, x="Tanggal", y="Prediksi Harga",
+        title="Prediksi Harga Beras - SARIMA",
+        markers=True,
+        color_discrete_sequence=["#28B463"]
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+    st.dataframe(pred_df)
+
+# =================================================================
+# 6. PREDIKSI DENGAN PROPHET
+# =================================================================
+elif selected == "Prediksi Prophet":
+    st.markdown(
+        "<h2 style='color:#AF7AC5; text-align:center;'>🔮 Prediksi Harga Beras Menggunakan Prophet</h2>",
+        unsafe_allow_html=True
+    )
+
+    periode = st.slider("Pilih Periode Prediksi (bulan)", 1, 36, 12, key="Pr")
+
+    model = Prophet()
+    model.fit(df)
+    future = model.make_future_dataframe(periods=periode, freq="MS")
+    forecast = model.predict(future)
+
+    pred_df = forecast[["ds", "yhat"]].tail(periode)
+
+    fig3 = px.line(
+        pred_df, x="ds", y="yhat",
+        title="Prediksi Harga Beras - Prophet",
+        markers=True,
+        color_discrete_sequence=["#AF7AC5"]
+    )
+    st.plotly_chart(fig3, use_container_width=True)
+    st.dataframe(pred_df)
+
+# =================================================================
+# 7. HALAMAN TENTANG
+# =================================================================
+elif selected == "Tentang":
+    st.title("Tentang Aplikasi")
+    st.write("""
+    Aplikasi ini dikembangkan untuk memprediksi harga beras di Indonesia 
+    menggunakan dua model peramalan: **SARIMA** dan **Prophet**.  
+
+    Fitur:
+    - Upload dataset manual
+    - Dashboard trend interaktif
+    - Prediksi SARIMA & Prophet
+    - Input harga bulan ini untuk prediksi manual
+    - Grafik interaktif Plotly
+    """)
