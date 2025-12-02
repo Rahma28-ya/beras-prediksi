@@ -182,60 +182,59 @@ elif selected == "Prediksi SARIMA":
     )
 
     # --- UI Estetik Pilih Periode ---
-st.markdown("""
-<style>
-.card-option {
-    padding: 14px;
-    border-radius: 12px;
-    background: #ffffffcc;
-    border: 2px solid #eee;
-    text-align: center;
-    transition: 0.2s;
-    cursor: pointer;
-}
-.card-option:hover {
-    border-color: #ff7ab6;
-    transform: scale(1.03);
-    background: #fff0f5;
-}
-.selected-card {
-    border-color: #ff2d75 !important;
-    background: #ffe6ef !important;
-    transform: scale(1.05);
-}
-</style>
-""", unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    .card-option {
+        padding: 14px;
+        border-radius: 12px;
+        background: #ffffffcc;
+        border: 2px solid #eee;
+        text-align: center;
+        transition: 0.2s;
+        cursor: pointer;
+    }
+    .card-option:hover {
+        border-color: #28b463;
+        transform: scale(1.03);
+        background: #e6f7ea;
+    }
+    .selected-card {
+        border-color: #28B463 !important;
+        background: #d4f3d4 !important;
+        transform: scale(1.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.subheader("🎨 Pilih Periode Prediksi")
+    st.subheader("🎨 Pilih Periode Prediksi")
 
-# Card pilihan 12/24/36
-cols = st.columns(3)
-labels = ["12 Bulan", "24 Bulan", "36 Bulan"]
-values = [12, 24, 36]
+    cols = st.columns(3)
+    labels = ["12 Bulan", "24 Bulan", "36 Bulan"]
+    values = [12, 24, 36]
 
-if "periode_sarima" not in st.session_state:
-    st.session_state.periode_sarima = 12
+    if "periode_sarima" not in st.session_state:
+        st.session_state.periode_sarima = 12
 
-for i, col in enumerate(cols):
-    with col:
-        if st.button(labels[i], key=f"sarima_btn_{i}"):
-            st.session_state.periode_sarima = values[i]
+    for i, col in enumerate(cols):
+        with col:
+            if st.button(labels[i], key=f"sarima_btn_{i}"):
+                st.session_state.periode_sarima = values[i]
 
-        st.markdown(
-            f"<div class='{'selected-card' if st.session_state.periode_sarima == values[i] else 'card-option'}'>"
-            f"<h4>{labels[i]}</h4></div>",
-            unsafe_allow_html=True
-        )
+            st.markdown(
+                f"<div class='{'selected-card' if st.session_state.periode_sarima == values[i] else 'card-option'}'>"
+                f"<h4>{labels[i]}</h4></div>",
+                unsafe_allow_html=True
+            )
 
-# Slider manual
-periode = st.slider(
-    "Atau pilih manual (1–36 bulan)",
-    1, 36,
-    st.session_state.periode_sarima,
-    key="sarima_slider"
-)
-st.session_state.periode_sarima = periode
+    periode = st.slider(
+        "Atau pilih manual (1–36 bulan)",
+        1, 36,
+        st.session_state.periode_sarima,
+        key="sarima_slider"
+    )
+    st.session_state.periode_sarima = periode
 
+    # Forecast SARIMA
     model = SARIMAX(df["y"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
     model_fit = model.fit(disp=False)
     pred = model_fit.forecast(steps=periode)
@@ -264,58 +263,59 @@ elif selected == "Prediksi Prophet":
     )
 
     # --- UI Estetik Pilih Periode ---
-st.markdown("""
-<style>
-.card-option {
-    padding: 14px;
-    border-radius: 12px;
-    background: #ffffffcc;
-    border: 2px solid #eee;
-    text-align: center;
-    transition: 0.2s;
-    cursor: pointer;
-}
-.card-option:hover {
-    border-color: #7c4dff;
-    transform: scale(1.03);
-    background: #f3eaff;
-}
-.selected-card {
-    border-color: #5e35b1 !important;
-    background: #ede7f6 !important;
-    transform: scale(1.05);
-}
-</style>
-""", unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    .card-option {
+        padding: 14px;
+        border-radius: 12px;
+        background: #ffffffcc;
+        border: 2px solid #eee;
+        text-align: center;
+        transition: 0.2s;
+        cursor: pointer;
+    }
+    .card-option:hover {
+        border-color: #AF7AC5;
+        transform: scale(1.03);
+        background: #f3eaff;
+    }
+    .selected-card {
+        border-color: #AF7AC5 !important;
+        background: #e8daef !important;
+        transform: scale(1.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.subheader("🔮 Pilih Periode Prediksi Prophet")
+    st.subheader("🔮 Pilih Periode Prediksi Prophet")
 
-cols = st.columns(3)
-labels = ["12 Bulan", "24 Bulan", "36 Bulan"]
-values = [12, 24, 36]
+    cols = st.columns(3)
+    labels = ["12 Bulan", "24 Bulan", "36 Bulan"]
+    values = [12, 24, 36]
 
-if "periode_prophet" not in st.session_state:
-    st.session_state.periode_prophet = 12
+    if "periode_prophet" not in st.session_state:
+        st.session_state.periode_prophet = 12
 
-for i, col in enumerate(cols):
-    with col:
-        if st.button(labels[i], key=f"prophet_btn_{i}"):
-            st.session_state.periode_prophet = values[i]
+    for i, col in enumerate(cols):
+        with col:
+            if st.button(labels[i], key=f"prophet_btn_{i}"):
+                st.session_state.periode_prophet = values[i]
 
-        st.markdown(
-            f"<div class='{'selected-card' if st.session_state.periode_prophet == values[i] else 'card-option'}'>"
-            f"<h4>{labels[i]}</h4></div>",
-            unsafe_allow_html=True
-        )
+            st.markdown(
+                f"<div class='{'selected-card' if st.session_state.periode_prophet == values[i] else 'card-option'}'>"
+                f"<h4>{labels[i]}</h4></div>",
+                unsafe_allow_html=True
+            )
 
-periode = st.slider(
-    "Atau pilih manual (1–36 bulan)",
-    1, 36,
-    st.session_state.periode_prophet,
-    key="prophet_slider"
-)
-st.session_state.periode_prophet = periode
+    periode = st.slider(
+        "Atau pilih manual (1–36 bulan)",
+        1, 36,
+        st.session_state.periode_prophet,
+        key="prophet_slider"
+    )
+    st.session_state.periode_prophet = periode
 
+    # Forecast Prophet
     model = Prophet()
     model.fit(df)
     future = model.make_future_dataframe(periods=periode, freq="MS")
@@ -348,4 +348,5 @@ elif selected == "Tentang":
     - Input harga bulan ini untuk prediksi manual
     - Grafik interaktif Plotly
     """)
+
 
