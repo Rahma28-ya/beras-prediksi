@@ -42,7 +42,7 @@ if data_file:
     df = pd.read_csv(data_file)
 else:
     st.info("ℹ️ Tidak ada file diupload. Menggunakan **dataset default** bawaan.")
-    df = pd.read_csv("default.csv")   # <-- Pastikan kamu upload default.csv ke repo!
+    df = pd.read_csv("bps_final.csv")   # <-- Pastikan kamu upload default.csv ke repo!
 
 # pastikan kolom pertama adalah tanggal
 df.iloc[:,0] = pd.to_datetime(df.iloc[:,0], errors="coerce")
